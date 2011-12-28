@@ -1,0 +1,20 @@
+#!/bin/sh
+
+rc=0
+
+if test "$1"; then
+   rc="$1"
+fi
+
+echo -e "\\x$rc" | dd of=/dev/port bs=1 count=1 seek=$((0x501)) 2>/dev/null
+
+# above didn't work, use legacy bochs shutdown
+echo "Clean shutdown failed, falling back to bochs shutdown!"
+echo 'S' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 'h' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 'u' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 't' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 'd' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 'o' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 'w' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+echo 'n' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null

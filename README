@@ -12,4 +12,27 @@ Usage
 -----
 
 $ git submodule update --init
-$ make ARCH=i386
+$ make ARCH=i486
+
+Supporting New Architectures
+----------------------------
+
+In theory, you only need to create two files to support a new architecture:
+
+ - configs/uClibc-$(ARCH).config
+ - configs/linux-$(ARCH).config
+
+You can create these files by using the following procedure:
+
+        $ mkdir tmp && cd tmp
+        $ make -C $(pwd)/../uClibc O=$(pwd) ARCH=$ARCH defconfig
+        $ cp .config ../configs/uClibc-$ARCH.config
+        $ diff -u ../configs/uClibc-$ARCH.config ../configs/uClibc-i486.config
+
+In the last step, make sure to fixup any options that don't look like they're
+architecture specific.  We require a few options to be set in uClibc that aren't
+set by default.
+
+The procedure to create a kernel .config is almost identical to the above except
+that most architectures don't have a useful 'defconfig'.  You'll need to run
+whatever form of defconfig is appropriate for that architecture.

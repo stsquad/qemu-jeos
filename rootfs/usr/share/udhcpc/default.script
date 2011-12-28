@@ -1,0 +1,14 @@
+#!/bin/sh
+
+case "$1" in
+    deconfig)
+	ifconfig $interface 0.0.0.0 promisc up
+	;;
+    bound)
+        ifconfig $interface $ip netmask $subnet up
+	echo "nameserver $dns" > /etc/resolv.conf
+	route add default gw $router
+	;;
+    *)
+	;;
+esac

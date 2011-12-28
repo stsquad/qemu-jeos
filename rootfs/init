@@ -1,0 +1,61 @@
+#!/bin/sh
+
+mkdir /proc
+mount -t proc proc /proc
+
+mkdir /sys
+mount -t sysfs sysfs /sys
+
+echo 0 > /proc/sys/kernel/printk
+
+busybox --install -s
+
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts
+
+mknod /dev/null c 1 3
+mknod /dev/tty c 5 0
+
+echo /sbin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+
+get_opt() {
+    echo "$@" | cut -f2- -d=
+}
+
+for i in `cat /proc/cmdline`; do
+    case $i in
+	seed\=*)
+	    seed=`get_opt $i`
+	    echo "Setting guest RANDOM seed to $seed"
+	    RANDOM=$seed
+	    ;;
+	*)
+	    ;;
+    esac
+done
+	    
+
+echo "*** Running tests ***"
+
+ran="no"
+if test -d /tests; then
+    for i in /tests/*.sh; do
+	ran="yes"
+	echo -n "Running test $i..."
+	$i
+	rc=$?
+	if test $rc != 0; then
+	    echo -e "\t\tFAILED ($rc)"
+	    qemu-exit $rc
+	else
+	    echo -e "\t\tOK"
+	fi
+    done
+fi
+
+if test "$ran" = "no"; then
+    exec /bin/sh
+fi
+
+qemu-exit 0

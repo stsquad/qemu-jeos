@@ -1,0 +1,40 @@
+#!/bin/sh
+
+show() {
+    echo "$1/$2=`cat $1/$2`"
+}
+
+get_u8() {
+    dd if="$1/$2" bs=1 skip=$3 count=1 2>/dev/null | hexdump -e '/1 "0x%02x\n"'
+}
+
+get_u16() {
+    dd if="$1/$2" bs=2 skip=$3 count=1 2>/dev/null | hexdump -e '/2 "0x%04x\n"'
+}
+
+get_u32() {
+    dd if="$1/$2" bs=4 skip=$3 count=1 2>/dev/null | hexdump -e '/4 "0x%08x\n"'
+}
+
+first="yes"
+for path in /sys/bus/pci/devices/*; do
+    for item in vendor device subsystem_vendor subsystem_device class; do
+	show $path $item
+    done
+    echo "$path/revision=`get_u8 $path config 8`"
+    vendor=`cat $path/vendor`
+    device=`cat $path/device`
+    if test $(($vendor)) = $((0x1af4)) -a \
+            $(($device)) -ge $((0x1000)) -a \
+	    $(($device)) -le $((0x103f)); then
+	echo "$path/virtio/host-features=`get_u32 $path resource0 0`"
+    fi
+	
+done
+
+path="/sys/class/dmi/id"
+for item in bios_vendor bios_date bios_version chassis_vendor chassis_version \
+    chassis_type chassis_serial chassis_asset_tag product_name product_serial \
+    product_version sys_vendor; do
+    show $path $item
+done

@@ -8,12 +8,20 @@ else
 LINUX_ARCH=$(ARCH)
 endif
 
+KERNEL=vmlinux
+ifeq ($(LINUX_ARCH),i386)
+KERNEL=bzImage
+endif
+ifeq ($(LINUX_ARCH),x86_64)
+KERNEL=bzImage
+endif
+
 OBJ_DIR=$(SRC_DIR)/build-$(ARCH)
 PREFIX=$(SRC_DIR)/install-$(ARCH)
 
 TARGET=$(ARCH)-linux-uclibc
 
-all: busybox-build linux-build
+all: $(OBJ_DIR)/initramfs.img.gz linux-build
 
 ####################
 ## binutils build ##
@@ -95,7 +103,7 @@ linux-headers-install: $(OBJ_DIR)/linux/.config
 ## uClibc build ##
 ##################
 
-$(OBJ_DIR)/uClibc/.config: gcc-install configs/uClibc-$(LINUX_ARCH).config.in linux-headers-install
+$(OBJ_DIR)/uClibc/.config: linux-headers-install configs/uClibc-$(LINUX_ARCH).config.in
 	mkdir -p $(OBJ_DIR)/uClibc && \
 	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" configs/uClibc-$(LINUX_ARCH).config.in > $@ && \
 	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
@@ -130,7 +138,24 @@ busybox-build: gcc-install $(OBJ_DIR)/busybox/.config uClibc-install
 linux-build: $(OBJ_DIR)/linux/.config gcc-install
 	$(MAKE) -C $(OBJ_DIR)/linux \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
-	  vmlinux
+	  $(KERNEL)
+
+#####################
+## initramfs build ##
+#####################
+
+$(OBJ_DIR)/initramfs/init: rootfs/init
+	mkdir -p $(OBJ_DIR)/initramfs && \
+	cd rootfs; cp -ra * $(OBJ_DIR)/initramfs/; cd ..
+
+$(OBJ_DIR)/initramfs/bin/busybox: $(OBJ_DIR)/initramfs/init busybox-build
+	cp $(OBJ_DIR)/busybox/busybox $(OBJ_DIR)/initramfs/bin/
+
+$(OBJ_DIR)/initramfs.img: $(OBJ_DIR)/initramfs/bin/busybox
+	cd $(OBJ_DIR)/initramfs; find . -print | cpio -H newc -o > $@
+
+$(OBJ_DIR)/initramfs.img.gz: $(OBJ_DIR)/initramfs.img
+	cat $< | gzip > $@
 
 #################
 ## Misc. rules ##
@@ -139,8 +164,9 @@ linux-build: $(OBJ_DIR)/linux/.config gcc-install
 clean:
 	$(RM) -r $(PREFIX) $(OBJ_DIR) $(PREFIX) *~
 
-PHONY = clean binutils-build binutils-install gcc-build gcc-install
+PHONY = binutils-build binutils-install gcc-build gcc-install
 PHONY += linux-headers-install linux-build uClibc-build uClibc-install
 PHONY += busybox-build
+PHONY += clean all
 
 .PHONY: $(PHONY)
