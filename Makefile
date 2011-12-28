@@ -1,6 +1,6 @@
 SRC_DIR=$(shell pwd)
 
-ARCH=i486
+ARCH ?= i486
 
 ifeq ($(ARCH),i486)
 LINUX_ARCH=i386
@@ -95,9 +95,9 @@ linux-headers-install: $(OBJ_DIR)/linux/.config
 ## uClibc build ##
 ##################
 
-$(OBJ_DIR)/uClibc/.config: configs/uClibc-$(LINUX_ARCH).config.in linux-headers-install
+$(OBJ_DIR)/uClibc/.config: gcc-install configs/uClibc-$(LINUX_ARCH).config.in linux-headers-install
 	mkdir -p $(OBJ_DIR)/uClibc && \
-	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" $< > $@ && \
+	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" configs/uClibc-$(LINUX_ARCH).config.in > $@ && \
 	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
 	  ARCH=$(LINUX_ARCH) oldconfig
 
@@ -119,7 +119,7 @@ $(OBJ_DIR)/busybox/.config: configs/busybox.config.in
 	$(MAKE) -C $(SRC_DIR)/busybox O=$(OBJ_DIR)/busybox \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- oldconfig
 
-busybox-build: $(OBJ_DIR)/busybox/.config uClibc-install
+busybox-build: gcc-install $(OBJ_DIR)/busybox/.config uClibc-install
 	$(MAKE) -C $(OBJ_DIR)/busybox \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)-
 
@@ -137,7 +137,7 @@ linux-build: $(OBJ_DIR)/linux/.config gcc-install
 #################
 
 clean:
-	$(RM) -r $(PREFIX) $(OBJ_DIR) *~
+	$(RM) -r $(PREFIX) $(OBJ_DIR) $(PREFIX) *~
 
 PHONY = clean binutils-build binutils-install gcc-build gcc-install
 PHONY += linux-headers-install linux-build uClibc-build uClibc-install
