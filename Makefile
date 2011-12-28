@@ -144,11 +144,12 @@ linux-build: $(OBJ_DIR)/linux/.config gcc-install
 ## initramfs build ##
 #####################
 
-$(OBJ_DIR)/initramfs/init: rootfs/init
+$(OBJ_DIR)/initramfs/init: rootfs/init busybox-build
 	mkdir -p $(OBJ_DIR)/initramfs && \
-	cd rootfs; cp -ra * $(OBJ_DIR)/initramfs/; cd ..
+	cd rootfs; cp -ra * $(OBJ_DIR)/initramfs/; cd .. && \
+	ln -f -s /bin/busybox $(OBJ_DIR)/initramfs/bin/sh
 
-$(OBJ_DIR)/initramfs/bin/busybox: $(OBJ_DIR)/initramfs/init busybox-build
+$(OBJ_DIR)/initramfs/bin/busybox: $(OBJ_DIR)/initramfs/init
 	cp $(OBJ_DIR)/busybox/busybox $(OBJ_DIR)/initramfs/bin/
 
 $(OBJ_DIR)/initramfs.img: $(OBJ_DIR)/initramfs/bin/busybox
