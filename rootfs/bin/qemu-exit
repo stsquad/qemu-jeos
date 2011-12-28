@@ -18,3 +18,7 @@ echo 'd' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
 echo 'o' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
 echo 'w' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
 echo 'n' | dd of=/dev/port bs=1 count=1 seek=$((0x8900)) 2>/dev/null
+
+echo "Bochs shutdown didn't work... trying to poweroff"
+
+poweroff
