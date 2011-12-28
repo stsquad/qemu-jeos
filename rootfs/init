@@ -39,7 +39,7 @@ done
 echo "*** Running tests ***"
 
 ran="no"
-if test -d /tests; then
+if test -d /tests && ls /tests/*.sh 2>/dev/null; then
     for i in /tests/*.sh; do
 	ran="yes"
 	echo -n "Running test $i..."
