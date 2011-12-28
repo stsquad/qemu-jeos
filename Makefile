@@ -113,7 +113,7 @@ uClibc-install: uClibc-build
 ## Busybox build ##
 ###################
 
-$(OBJ_DIR)/busybox/.config: configs/busybox-$(LINUX_ARCH).config.in
+$(OBJ_DIR)/busybox/.config: configs/busybox.config.in
 	mkdir -p $(OBJ_DIR)/busybox && \
 	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" $< > $@ && \
 	$(MAKE) -C $(SRC_DIR)/busybox O=$(OBJ_DIR)/busybox \
