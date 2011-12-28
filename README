@@ -1,0 +1,15 @@
+QEMU Test JeOS
+==============
+
+This is a simple build system that builds a super small environment that can be
+used within qemu-test.  It uses a Linux kernel, uClibc and busybox to provide
+the smallest possible guest with a usable shell.
+
+The environment supports cross compilation such it is possible to build a JeOS
+for any target that QEMU supports regardless of your host system.
+
+Usage
+-----
+
+$ git submodule update --init
+$ make ARCH=i386

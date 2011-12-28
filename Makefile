@@ -2,12 +2,18 @@ SRC_DIR=$(shell pwd)
 
 ARCH=i486
 
+ifeq ($(ARCH),i486)
+LINUX_ARCH=i386
+else
+LINUX_ARCH=$(ARCH)
+endif
+
 OBJ_DIR=$(SRC_DIR)/build-$(ARCH)
 PREFIX=$(SRC_DIR)/install-$(ARCH)
 
 TARGET=$(ARCH)-linux-uclibc
 
-all: gcc-build
+all: busybox-build linux-build
 
 ####################
 ## binutils build ##
@@ -72,17 +78,59 @@ gcc-install: gcc-build
 ## Linux headers ##
 ###################
 
+$(OBJ_DIR)/linux/.config: configs/linux-$(LINUX_ARCH).config gcc-install
+	mkdir -p $(OBJ_DIR)/linux && \
+	cp $< $@ && \
+	cd $(OBJ_DIR)/linux && \
+	$(MAKE) -C $(SRC_DIR)/linux O=$(OBJ_DIR)/linux \
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
+	  oldconfig
+
+linux-headers-install: $(OBJ_DIR)/linux/.config
+	$(MAKE) -C $(OBJ_DIR)/linux \
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
+	  headers_install INSTALL_HDR_PATH=$(PREFIX)/usr
+
 ##################
 ## uClibc build ##
 ##################
+
+$(OBJ_DIR)/uClibc/.config: configs/uClibc-$(LINUX_ARCH).config.in linux-headers-install
+	mkdir -p $(OBJ_DIR)/uClibc && \
+	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" $< > $@ && \
+	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
+	  ARCH=$(LINUX_ARCH) oldconfig
+
+uClibc-build: $(OBJ_DIR)/uClibc/.config
+	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
+	  ARCH=$(LINUX_ARCH)
+
+uClibc-install: uClibc-build
+	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
+	  ARCH=$(LINUX_ARCH) install
 
 ###################
 ## Busybox build ##
 ###################
 
+$(OBJ_DIR)/busybox/.config: configs/busybox-$(LINUX_ARCH).config.in
+	mkdir -p $(OBJ_DIR)/busybox && \
+	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" $< > $@ && \
+	$(MAKE) -C $(SRC_DIR)/busybox O=$(OBJ_DIR)/busybox \
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- oldconfig
+
+busybox-build: $(OBJ_DIR)/busybox/.config uClibc-install
+	$(MAKE) -C $(OBJ_DIR)/busybox \
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)-
+
 #################
 ## Linux build ##
 #################
+
+linux-build: $(OBJ_DIR)/linux/.config gcc-install
+	$(MAKE) -C $(OBJ_DIR)/linux \
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
+	  vmlinux
 
 #################
 ## Misc. rules ##
@@ -91,4 +139,8 @@ gcc-install: gcc-build
 clean:
 	$(RM) -r $(PREFIX) $(OBJ_DIR) *~
 
-.PHONY: clean binutils-build binutils-install gcc-build gcc-install
+PHONY = clean binutils-build binutils-install gcc-build gcc-install
+PHONY += linux-headers-install linux-build uClibc-build uClibc-install
+PHONY += busybox-build
+
+.PHONY: $(PHONY)
