@@ -163,7 +163,7 @@ $(OBJ_DIR)/initramfs.img.gz: $(OBJ_DIR)/initramfs.img
 #################
 
 clean:
-	$(RM) -r $(PREFIX) $(OBJ_DIR) $(PREFIX) *~
+	$(RM) -r $(PREFIX) build-* install-*
 
 PHONY = binutils-build binutils-install gcc-build gcc-install
 PHONY += linux-headers-install linux-build uClibc-build uClibc-install
