@@ -15,11 +15,18 @@ endif
 ifeq ($(LINUX_ARCH),x86_64)
 KERNEL=bzImage
 endif
+ifeq ($(LINUX_ARCH),arm)
+KERNEL=zImage
+endif
 
 OBJ_DIR=$(SRC_DIR)/build-$(ARCH)
 PREFIX=$(SRC_DIR)/install-$(ARCH)
 
+ifeq ($(ARCH),arm)
+TARGET=arm-linux-uclibcgnueabi
+else
 TARGET=$(ARCH)-linux-uclibc
+endif
 
 all: $(OBJ_DIR)/initramfs.img.gz linux-build
 
