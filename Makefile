@@ -1,40 +1,34 @@
-SRC_DIR=$(shell pwd)
+#
+# TODO
+#
+# 1) Replace use of merge_config.sh with a better script.  One that allows
+#    fragments to include other fragments and with better support for overriding
+#    string values.
+#
 
-ARCH ?= i486
+SRC_DIR ?= $(shell pwd)
+OBJ_DIR ?= $(SRC_DIR)/build-$(ARCH)-$(MACHINE)
 
-ifeq ($(ARCH),i486)
-LINUX_ARCH=i386
-else
-LINUX_ARCH=$(ARCH)
-endif
+ARCH ?= x86_64
+MACHINE ?= pc
 
-KERNEL=vmlinux
-ifeq ($(LINUX_ARCH),i386)
-KERNEL=bzImage
-endif
-ifeq ($(LINUX_ARCH),x86_64)
-KERNEL=bzImage
-endif
-ifeq ($(LINUX_ARCH),arm)
-KERNEL=zImage
-endif
-
-OBJ_DIR=$(SRC_DIR)/build-$(ARCH)
-PREFIX=$(SRC_DIR)/install-$(ARCH)
-
-ifeq ($(ARCH),arm)
-TARGET=arm-linux-uclibcgnueabi
-else
 TARGET=$(ARCH)-linux-uclibc
-endif
+LINUX_ARCH=$(ARCH)
+UCLIBC_CONFIG=uClibc.cfg
+BUSYBOX_CONFIG=busybox.cfg
+LINUX_CONFIG=linux-$(ARCH).cfg
+DEFCONFIG=defconfig
 
-all: $(OBJ_DIR)/initramfs.img.gz linux-build
+include configs/$(ARCH)-$(MACHINE).cfg
+PREFIX=$(OBJ_DIR)/install
+
+all: linux-build $(OBJ_DIR)/initramfs.img.gz
 
 ####################
 ## binutils build ##
 ####################
 
-$(OBJ_DIR)/binutils/Makefile: binutils/configure
+$(OBJ_DIR)/binutils/Makefile: $(SRC_DIR)/binutils/configure
 	mkdir -p $(OBJ_DIR)/binutils && \
 	cd $(OBJ_DIR)/binutils && \
 	$(SRC_DIR)/binutils/configure \
@@ -55,7 +49,7 @@ binutils-install: binutils-build
 ## GCC build ##
 ###############
 
-$(OBJ_DIR)/gcc/Makefile: gcc/configure binutils-install
+$(OBJ_DIR)/gcc/Makefile: $(SRC_DIR)/gcc/configure
 	mkdir -p $(OBJ_DIR)/gcc && \
 	cd $(OBJ_DIR)/gcc && \
 	$(SRC_DIR)/gcc/configure \
@@ -83,7 +77,7 @@ $(OBJ_DIR)/gcc/Makefile: gcc/configure binutils-install
 $(PREFIX)/usr/include:
 	mkdir -p $(PREFIX)/usr/include
 
-gcc-build: $(OBJ_DIR)/gcc/Makefile $(PREFIX)/usr/include
+gcc-build: binutils-install $(OBJ_DIR)/gcc/Makefile $(PREFIX)/usr/include
 	$(MAKE) -C $(OBJ_DIR)/gcc
 
 gcc-install: gcc-build
@@ -93,15 +87,21 @@ gcc-install: gcc-build
 ## Linux headers ##
 ###################
 
-$(OBJ_DIR)/linux/.config: configs/linux-$(LINUX_ARCH).config gcc-install
+$(OBJ_DIR)/linux/.config: $(PREFIX)
 	mkdir -p $(OBJ_DIR)/linux && \
-	cp $< $@ && \
 	cd $(OBJ_DIR)/linux && \
 	$(MAKE) -C $(SRC_DIR)/linux O=$(OBJ_DIR)/linux \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
+	  $(DEFCONFIG) && \
+	mv .config defconfig.cfg && \
+	/bin/sh $(SRC_DIR)/linux/scripts/kconfig/merge_config.sh -m \
+                defconfig.cfg \
+                $(SRC_DIR)/configs/$(LINUX_CONFIG) && \
+        yes "" | $(MAKE) -C $(SRC_DIR)/linux O=$(OBJ_DIR)/linux \
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
 	  oldconfig
 
-linux-headers-install: $(OBJ_DIR)/linux/.config
+linux-headers-install: gcc-install $(OBJ_DIR)/linux/.config
 	$(MAKE) -C $(OBJ_DIR)/linux \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
 	  headers_install INSTALL_HDR_PATH=$(PREFIX)/usr
@@ -110,13 +110,26 @@ linux-headers-install: $(OBJ_DIR)/linux/.config
 ## uClibc build ##
 ##################
 
-$(OBJ_DIR)/uClibc/.config: linux-headers-install configs/uClibc-$(LINUX_ARCH).config.in
+$(OBJ_DIR)/uClibc/.config:
 	mkdir -p $(OBJ_DIR)/uClibc && \
-	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" configs/uClibc-$(LINUX_ARCH).config.in > $@ && \
+	cd $(OBJ_DIR)/uClibc && \
 	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
-	  ARCH=$(LINUX_ARCH) oldconfig
+	  ARCH=$(LINUX_ARCH) defconfig && \
+	sed -e 's/^KERNEL_HEADERS=.*//g;s/^RUNTIME_PREFIX=.*//g;s/^DEVEL_PREFIX=.*//g;s/^CROSS_COMPILER_PREFIX=.*//g' $(OBJ_DIR)/uClibc/.config > $(OBJ_DIR)/uClibc/defconfig.cfg && \
+	cp $(SRC_DIR)/configs/$(UCLIBC_CONFIG) $(OBJ_DIR)/uClibc/options.cfg && \
+	echo "KERNEL_HEADERS=\"$(PREFIX)/usr/include\"" >> \
+             $(OBJ_DIR)/uClibc/options.cfg && \
+	echo "RUNTIME_PREFIX=\"$(PREFIX)/$$(TARGET_SUBARCH)-linux-uclibc/\"" >>\
+             $(OBJ_DIR)/uClibc/options.cfg && \
+	echo "DEVEL_PREFIX=\"$(PREFIX)/usr\"" >> \
+             $(OBJ_DIR)/uClibc/options.cfg && \
+	echo "CROSS_COMPILER_PREFIX=\"$(PREFIX)/bin/$(TARGET)-\"" >> \
+             $(OBJ_DIR)/uClibc/options.cfg && \
+	/bin/sh $(SRC_DIR)/linux/scripts/kconfig/merge_config.sh -m \
+                $(OBJ_DIR)/uClibc/defconfig.cfg \
+                $(OBJ_DIR)/uClibc/options.cfg
 
-uClibc-build: $(OBJ_DIR)/uClibc/.config
+uClibc-build: linux-headers-install $(OBJ_DIR)/uClibc/.config
 	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
 	  ARCH=$(LINUX_ARCH)
 
@@ -128,13 +141,21 @@ uClibc-install: uClibc-build
 ## Busybox build ##
 ###################
 
-$(OBJ_DIR)/busybox/.config: configs/busybox.config.in
+$(OBJ_DIR)/busybox/.config:
 	mkdir -p $(OBJ_DIR)/busybox && \
-	sed -e "s:@PREFIX@:$(PREFIX):g;s:@TARGET@:$(TARGET):g" $< > $@ && \
+	cd $(OBJ_DIR)/busybox && \
 	$(MAKE) -C $(SRC_DIR)/busybox O=$(OBJ_DIR)/busybox \
-	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- oldconfig
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- defconfig && \
+	sed -e 's/^CONFIG_CROSS_COMPILER_PREFIX=.*//g;s/^CONFIG_PREFIX=.*//g' $(OBJ_DIR)/busybox/.config > $(OBJ_DIR)/busybox/defconfig.cfg && \
+	cp $(SRC_DIR)/configs/$(BUSYBOX_CONFIG) $(OBJ_DIR)/busybox/options.cfg && \
+	echo "CONFIG_CROSS_COMPILER_PREFIX=\"$(PREFIX)/bin/$(TARGET)-\"" >> \
+             $(OBJ_DIR)/busybox/options.cfg && \
+	echo "CONFIG_PREFIX=\"/usr\"" >> $(OBJ_DIR)/busybox/options.cfg && \
+	/bin/sh $(SRC_DIR)/linux/scripts/kconfig/merge_config.sh -m \
+                $(OBJ_DIR)/busybox/defconfig.cfg \
+                $(OBJ_DIR)/busybox/options.cfg
 
-busybox-build: gcc-install $(OBJ_DIR)/busybox/.config uClibc-install
+busybox-build: uClibc-install $(OBJ_DIR)/busybox/.config
 	$(MAKE) -C $(OBJ_DIR)/busybox \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)-
 
@@ -142,21 +163,22 @@ busybox-build: gcc-install $(OBJ_DIR)/busybox/.config uClibc-install
 ## Linux build ##
 #################
 
-linux-build: $(OBJ_DIR)/linux/.config gcc-install
+linux-build: gcc-install $(OBJ_DIR)/linux/.config
 	$(MAKE) -C $(OBJ_DIR)/linux \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
-	  $(KERNEL)
+	  $(KERNEL) && \
+	cp $(OBJ_DIR)/linux/$(KERNEL_PATH) $(OBJ_DIR)/vmlinuz
 
 #####################
 ## initramfs build ##
 #####################
 
-$(OBJ_DIR)/initramfs/init: rootfs/init busybox-build
+$(OBJ_DIR)/initramfs/init: rootfs/init
 	mkdir -p $(OBJ_DIR)/initramfs && \
 	cd rootfs; cp -ra * $(OBJ_DIR)/initramfs/; cd .. && \
 	ln -f -s /bin/busybox $(OBJ_DIR)/initramfs/bin/sh
 
-$(OBJ_DIR)/initramfs/bin/busybox: $(OBJ_DIR)/initramfs/init
+$(OBJ_DIR)/initramfs/bin/busybox: busybox-build $(OBJ_DIR)/initramfs/init
 	cp $(OBJ_DIR)/busybox/busybox $(OBJ_DIR)/initramfs/bin/
 
 $(OBJ_DIR)/initramfs.img: $(OBJ_DIR)/initramfs/bin/busybox
