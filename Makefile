@@ -31,7 +31,7 @@ all: linux-build $(OBJ_DIR)/initramfs.img.gz
 $(OBJ_DIR)/binutils/Makefile: $(SRC_DIR)/binutils/configure
 	mkdir -p $(OBJ_DIR)/binutils && \
 	cd $(OBJ_DIR)/binutils && \
-	$(SRC_DIR)/binutils/configure \
+	MACHINE= $(SRC_DIR)/binutils/configure \
 	   --prefix=$(PREFIX) \
 	   --oldincludedir=/usr/include \
 	   --target=$(TARGET) \
@@ -40,10 +40,10 @@ $(OBJ_DIR)/binutils/Makefile: $(SRC_DIR)/binutils/configure
 	   --disable-nls
 
 binutils-build: $(OBJ_DIR)/binutils/Makefile
-	$(MAKE) -C $(OBJ_DIR)/binutils
+	$(MAKE) -C $(OBJ_DIR)/binutils MACHINE=
 
 binutils-install: binutils-build
-	$(MAKE) -C $(OBJ_DIR)/binutils prefix=$(PREFIX) install
+	$(MAKE) -C $(OBJ_DIR)/binutils prefix=$(PREFIX) install MACHINE=
 
 ###############
 ## GCC build ##
