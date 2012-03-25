@@ -6,6 +6,8 @@
 #    string values.
 #
 
+unexport MAKEFLAGS
+
 SRC_DIR ?= $(shell pwd)
 OBJ_DIR ?= $(SRC_DIR)/build-$(ARCH)-$(MACHINE)
 
@@ -31,7 +33,7 @@ all: linux-build $(OBJ_DIR)/initramfs.img.gz
 $(OBJ_DIR)/binutils/Makefile: $(SRC_DIR)/binutils/configure
 	mkdir -p $(OBJ_DIR)/binutils && \
 	cd $(OBJ_DIR)/binutils && \
-	MACHINE= $(SRC_DIR)/binutils/configure \
+	$(SRC_DIR)/binutils/configure \
 	   --prefix=$(PREFIX) \
 	   --oldincludedir=/usr/include \
 	   --target=$(TARGET) \
@@ -40,10 +42,10 @@ $(OBJ_DIR)/binutils/Makefile: $(SRC_DIR)/binutils/configure
 	   --disable-nls
 
 binutils-build: $(OBJ_DIR)/binutils/Makefile
-	$(MAKE) -C $(OBJ_DIR)/binutils MACHINE=
+	$(MAKE) -C $(OBJ_DIR)/binutils
 
 binutils-install: binutils-build
-	$(MAKE) -C $(OBJ_DIR)/binutils prefix=$(PREFIX) install MACHINE=
+	$(MAKE) -C $(OBJ_DIR)/binutils prefix=$(PREFIX) install
 
 ###############
 ## GCC build ##
