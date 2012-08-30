@@ -20,6 +20,7 @@ UCLIBC_CONFIG=uClibc.cfg
 BUSYBOX_CONFIG=busybox.cfg
 LINUX_CONFIG=linux-$(ARCH).cfg
 DEFCONFIG=defconfig
+J ?= 1
 
 include configs/$(ARCH)-$(MACHINE).cfg
 PREFIX=$(OBJ_DIR)/install
@@ -49,7 +50,7 @@ $(OBJ_DIR)/binutils/Makefile: $(SRC_DIR)/binutils/configure
 	   --disable-nls
 
 binutils-build: $(OBJ_DIR)/binutils/Makefile
-	$(MAKE) -C $(OBJ_DIR)/binutils
+	$(MAKE) -C $(OBJ_DIR)/binutils -j$(J)
 
 binutils-install: binutils-build
 	$(MAKE) -C $(OBJ_DIR)/binutils prefix=$(PREFIX) install
@@ -87,7 +88,7 @@ $(PREFIX)/usr/include:
 	mkdir -p $(PREFIX)/usr/include
 
 gcc-build: binutils-install $(OBJ_DIR)/gcc/Makefile $(PREFIX)/usr/include
-	$(MAKE) -C $(OBJ_DIR)/gcc
+	$(MAKE) -C $(OBJ_DIR)/gcc -j$(J)
 
 gcc-install: gcc-build
 	$(MAKE) -C $(OBJ_DIR)/gcc prefix=$(PREFIX) install
@@ -140,7 +141,7 @@ $(OBJ_DIR)/uClibc/.config:
 
 uClibc-build: linux-headers-install $(OBJ_DIR)/uClibc/.config
 	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
-	  ARCH=$(LINUX_ARCH)
+	  ARCH=$(LINUX_ARCH) -j$(J)
 
 uClibc-install: uClibc-build
 	$(MAKE) -C $(SRC_DIR)/uClibc O=$(OBJ_DIR)/uClibc \
@@ -166,7 +167,7 @@ $(OBJ_DIR)/busybox/.config:
 
 busybox-build: uClibc-install $(OBJ_DIR)/busybox/.config
 	$(MAKE) -C $(OBJ_DIR)/busybox \
-	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)-
+	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- -j$(J)
 
 #################
 ## Linux build ##
@@ -175,7 +176,7 @@ busybox-build: uClibc-install $(OBJ_DIR)/busybox/.config
 linux-build: gcc-install $(OBJ_DIR)/linux/.config
 	$(MAKE) -C $(OBJ_DIR)/linux \
 	  ARCH=$(LINUX_ARCH) CROSS_COMPILE=$(PREFIX)/bin/$(TARGET)- \
-	  $(KERNEL) && \
+	  $(KERNEL) -j$(J) && \
 	cp $(OBJ_DIR)/linux/$(KERNEL_PATH) $(OBJ_DIR)/vmlinuz
 
 #####################
