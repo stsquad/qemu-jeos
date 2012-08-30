@@ -23,8 +23,15 @@ DEFCONFIG=defconfig
 
 include configs/$(ARCH)-$(MACHINE).cfg
 PREFIX=$(OBJ_DIR)/install
+JEOS_PREFIX=/usr/local
+INSTALL=install
 
 all: linux-build $(OBJ_DIR)/initramfs.img.gz
+
+install: all
+	$(INSTALL) -d -m755 $(JEOS_DESTDIR)$(JEOS_PREFIX)/share/qemu-jeos
+	$(INSTALL) -m644 $(OBJ_DIR)/initramfs.img.gz $(JEOS_DESTDIR)$(JEOS_PREFIX)/share/qemu-jeos/initramfs-$(ARCH)-$(MACHINE).img.gz
+	$(INSTALL) -m644 $(OBJ_DIR)/vmlinuz $(JEOS_DESTDIR)$(JEOS_PREFIX)/share/qemu-jeos/kernel-$(ARCH)-$(MACHINE)
 
 ####################
 ## binutils build ##
