@@ -9,7 +9,7 @@
 	url = git://uclibc.org/uClibc.git
 [submodule "binutils"]
 	path = binutils
-	url = git://sources.redhat.com/git/binutils.git
+	url = git://sourceware.org/git/binutils-gdb.git
 [submodule "gcc"]
 	path = gcc
 	url = git://gcc.gnu.org/git/gcc.git
