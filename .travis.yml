@@ -1,0 +1,22 @@
+language: c
+compiler:
+  - gcc
+env:
+  global:
+    - BUILD_DEP="gcc-4.8"
+    - PKGS=""
+# Manually specify the build Matrix    
+matrix:
+  include:
+    - env: ARCH=x86_64
+           MACHINE=pc
+    - env: ARCH=i586
+           MACHINE=pc
+    - env: ARCH=arm
+           MACHINE=vexpress
+before_install:
+  - git submodule update --init
+  - sudo apt-get update -qq
+  - sudo apt-get build-dep ${BUILD_DEP}
+  - sudo apt-get install -qq ${PKGS}
+script: "make ARCH=${ARCH} MACHINE=${MACHINE}"
